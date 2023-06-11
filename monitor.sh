@@ -8,10 +8,25 @@ get_system_info() {
     echo "Kernel Version: $(uname -r)"
     echo "Uptime: $(uptime)"
     echo "Load Average: $(cat /proc/loadavg)"
-    echo "CPU Usage: $(top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4}')%"
-    echo "Memory Usage: $(free -m | awk '/Mem/ {print $3 "MB / " $2 "MB"}')"
-    echo "Disk Usage: $(df -h / | awk '/\// {print $3 " / " $2}')"
+    echo -n "CPU Usage: "
+    print_colorized_usage "$(top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4}')"
+    echo -n "Memory Usage: "
+    print_colorized_usage "$(free -m | awk '/Mem/ {print $3/$2 * 100}')"
+    echo -n "Disk Usage: "
+    print_colorized_usage "$(df -h / | awk '/\// {print $3/$2 * 100}')"
     echo "-------------------"
+}
+
+# Function to print colorized usage output
+print_colorized_usage() {
+    usage=$1
+    if (( $(echo "$usage < 50" | bc -l) )); then
+        echo -e "\e[32m$usage%\e[0m"   # Green color
+    elif (( $(echo "$usage < 80" | bc -l) )); then
+        echo -e "\e[33m$usage%\e[0m"   # Yellow color
+    else
+        echo -e "\e[31m$usage%\e[0m"   # Red color
+    fi
 }
 
 # Function to monitor CPU usage
@@ -19,7 +34,8 @@ monitor_cpu_usage() {
     echo "CPU Usage Monitor:"
     echo "------------------"
     while true; do
-        echo "$(date +%H:%M:%S) - CPU Usage: $(top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4}')%"
+        usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4}')
+        echo "$(date +%H:%M:%S) - CPU Usage: $(print_colorized_usage $usage)"
         sleep 1
     done
 }
@@ -29,7 +45,8 @@ monitor_memory_usage() {
     echo "Memory Usage Monitor:"
     echo "---------------------"
     while true; do
-        echo "$(date +%H:%M:%S) - Memory Usage: $(free -m | awk '/Mem/ {print $3 "MB / " $2 "MB"}')"
+        usage=$(free -m | awk '/Mem/ {print $3/$2 * 100}')
+        echo "$(date +%H:%M:%S) - Memory Usage: $(print_colorized_usage $usage)"
         sleep 1
     done
 }
@@ -39,7 +56,8 @@ monitor_disk_usage() {
     echo "Disk Usage Monitor:"
     echo "--------------------"
     while true; do
-        echo "$(date +%H:%M:%S) - Disk Usage: $(df -h / | awk '/\// {print $3 " / " $2}')"
+        usage=$(df -h / | awk '/\// {print $3/$2 * 100}')
+        echo "$(date +%H:%M:%S) - Disk Usage: $(print_colorized_usage $usage)"
         sleep 1
     done
 }
